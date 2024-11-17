@@ -53,29 +53,30 @@ class DataAgent:
     
     def get_test_loader(self, batch_size=8):
         return DataLoader(self.test_dataset, batch_size, shuffle=False)
-    
+
+
     def plt_idx(self, idx, MRI='T1', show_contour=False, cmap='gray'):
         X, y = self.dataset[idx]
         plt.figure(figsize=(10, 10))
         
         plt.subplot(2, 2, 1)
         plt.title('CT')
-        plt.imshow(X[0], cmap='gray')
+        plt.imshow(X[0], cmap=cmap)
         if show_contour: plt.contour(y, colors='r', linewidths=1)
         
         plt.subplot(2, 2, 2)
         plt.title('PET')
-        plt.imshow(X[1], cmap='gray')
+        plt.imshow(X[1], cmap=cmap)
         if show_contour: plt.contour(y, colors='r', linewidths=1)
         
         plt.subplot(2, 2, 3)
         if MRI == 'T1': 
             plt.title('T1')
-            plt.imshow(X[2], cmap='gray')
+            plt.imshow(X[2], cmap=cmap)
             if show_contour: plt.contour(y, colors='r', linewidths=1)
         else:
             plt.title('T2')
-            plt.imshow(X[3], cmap='gray')
+            plt.imshow(X[3], cmap=cmap)
             if show_contour: plt.contour(y, colors='r', linewidths=1)
         
         plt.subplot(2, 2, 4)
