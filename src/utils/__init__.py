@@ -5,6 +5,7 @@ import numpy as np
 from src.data.data_preprocessing import CustomDataset1
 from torch.utils.data import random_split, DataLoader
 import os
+import matplotlib.pyplot as plt
 
 
 def expand_image_to_center(image, target_size=(512, 512)):
@@ -52,6 +53,33 @@ class DataAgent:
     
     def get_test_loader(self, batch_size=8):
         return DataLoader(self.test_dataset, batch_size, shuffle=False)
+    
+    def plt_idx(self, idx, MRI='T1', show_contour=False, cmap='gray'):
+        X, y = self.dataset[idx]
+        plt.figure(figsize=(10, 10))
+        
+        plt.subplot(2, 2, 1)
+        plt.title('CT')
+        plt.imshow(X[0], cmap='gray')
+        if show_contour: plt.contour(y, colors='r', linewidths=1)
+        
+        plt.subplot(2, 2, 2)
+        plt.title('PET')
+        plt.imshow(X[1], cmap='gray')
+        if show_contour: plt.contour(y, colors='r', linewidths=1)
+        
+        plt.subplot(2, 2, 3)
+        if MRI == 'T1': 
+            plt.title('T1')
+            plt.imshow(X[2], cmap='gray')
+            if show_contour: plt.contour(y, colors='r', linewidths=1)
+        else:
+            plt.title('T2')
+            plt.imshow(X[3], cmap='gray')
+            if show_contour: plt.contour(y, colors='r', linewidths=1)
+        
+        plt.subplot(2, 2, 4)
+        plt.imshow(y, cmap='gray')
     
 
 def save_model_incrementally(net, directory, base_name='net'):
