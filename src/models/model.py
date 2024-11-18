@@ -65,23 +65,41 @@ class Encoder2(nn.Module):
     def __init__(self):
         super().__init__()
         self.layer1 = nn.Sequential(
-            nn.Conv2d(1, 64, 3, padding=1), nn.ReLU(),
-            nn.Conv2d(64, 64, 3, padding=1), nn.ReLU(),
+            nn.Conv2d(1, 64, 3, padding=1), 
+            nn.BatchNorm2d(64),
+            nn.LeakyReLU(0.2),
+            nn.Conv2d(64, 64, 3, padding=1), 
+            nn.BatchNorm2d(64),
+            nn.LeakyReLU(0.2),
             )
         self.layer2 = nn.Sequential(
-            nn.Conv2d(64, 128, 3, padding=1), nn.ReLU(),
-            nn.Conv2d(128, 128, 3, padding=1), nn.ReLU(),
+            nn.Conv2d(64, 128, 3, padding=1),
+            nn.BatchNorm2d(128),
+            nn.LeakyReLU(0.2),
+            nn.Conv2d(128, 128, 3, padding=1),
+            nn.BatchNorm2d(128),
+            nn.LeakyReLU(0.2),
             )
         self.layer3 = nn.Sequential(
-            nn.Conv2d(128, 256, 3, padding=1), nn.ReLU(),
-            nn.Conv2d(256, 256, 3, padding=1), nn.ReLU(),
+            nn.Conv2d(128, 256, 3, padding=1),
+            nn.BatchNorm2d(256),
+            nn.LeakyReLU(0.2),
+            nn.Conv2d(256, 256, 3, padding=1),
+            nn.BatchNorm2d(256),
+            nn.LeakyReLU(0.2),
             )
         self.layer4 = nn.Sequential(
-            nn.Conv2d(256, 512, 3, padding=1), nn.ReLU(),
-            nn.Conv2d(512, 512, 3, padding=1), nn.ReLU(),
+            nn.Conv2d(256, 512, 3, padding=1),
+            nn.BatchNorm2d(512),
+            nn.LeakyReLU(0.2),
+            nn.Conv2d(512, 512, 3, padding=1),
+            nn.BatchNorm2d(512),
+            nn.LeakyReLU(0.2),
             )
         self.layer5 = nn.Sequential(
-            nn.Conv2d(512, 1024, 3, padding=1), nn.ReLU(),
+            nn.Conv2d(512, 1024, 3, padding=1),
+            nn.BatchNorm2d(1024),
+            nn.LeakyReLU(0.2),
             )
     
     def forward(self, x):
@@ -131,28 +149,48 @@ class Decoder2(nn.Module):
     def __init__(self):
         super().__init__()
         self.layer5 = nn.Sequential(
-            nn.Conv2d(1024*3, 1024, 3), nn.ReLU(),
-            nn.Conv2d(1024, 1024, 3), nn.ReLU(),
+            nn.Conv2d(1024*3, 1024, 3),
+            nn.BatchNorm2d(1024),
+            nn.LeakyReLU(0.2),
+            nn.Conv2d(1024, 1024, 3), 
+            nn.BatchNorm2d(1024),
+            nn.LeakyReLU(0.2),
             )
         self.up_conv4 = nn.ConvTranspose2d(1024, 512, kernel_size=4, stride=2, padding=1)
         self.layer4 = nn.Sequential(
-            nn.Conv2d(512*4, 512, 3), nn.ReLU(),
-            nn.Conv2d(512, 512, 3), nn.ReLU(),
+            nn.Conv2d(512*4, 512, 3), 
+            nn.BatchNorm2d(512),
+            nn.LeakyReLU(0.2),
+            nn.Conv2d(512, 512, 3), 
+            nn.BatchNorm2d(512),
+            nn.LeakyReLU(0.2),
             )
         self.up_conv3 = nn.ConvTranspose2d(512, 256, kernel_size=4, stride=2, padding=1)
         self.layer3 = nn.Sequential(
-            nn.Conv2d(256*4, 256, 3), nn.ReLU(),
-            nn.Conv2d(256, 256, 3), nn.ReLU(),
+            nn.Conv2d(256*4, 256, 3), 
+            nn.BatchNorm2d(256),
+            nn.LeakyReLU(0.2),
+            nn.Conv2d(256, 256, 3), 
+            nn.BatchNorm2d(256),
+            nn.LeakyReLU(0.2),
             )
         self.up_conv2 = nn.ConvTranspose2d(256, 128, kernel_size=4, stride=2, padding=1)
         self.layer2 = nn.Sequential(
-            nn.Conv2d(128*4, 128, 3), nn.ReLU(),
-            nn.Conv2d(128, 128, 3), nn.ReLU(),
+            nn.Conv2d(128*4, 128, 3), 
+            nn.BatchNorm2d(128),
+            nn.LeakyReLU(0.2),
+            nn.Conv2d(128, 128, 3), 
+            nn.BatchNorm2d(128),
+            nn.LeakyReLU(0.2),
             )
         self.up_conv1 = nn.ConvTranspose2d(128, 64, kernel_size=4, stride=2, padding=1)
         self.layer1 = nn.Sequential(
-            nn.Conv2d(64*4, 64, 3), nn.ReLU(),
-            nn.Conv2d(64, 64, 3), nn.ReLU(),
+            nn.Conv2d(64*4, 64, 3), 
+            nn.BatchNorm2d(64),
+            nn.LeakyReLU(0.2),
+            nn.Conv2d(64, 64, 3), 
+            nn.BatchNorm2d(64),
+            nn.LeakyReLU(0.2),
             nn.Conv2d(64, 1, 1)
             )
         
@@ -277,6 +315,33 @@ class UNet3(nn.Module):
         return x
 
 
+class AttentionBlock(nn.Module):
+    def __init__(self, F_g, F_l, F_int):
+        super(AttentionBlock, self).__init__()
+        self.W_g = nn.Sequential(
+            nn.Conv2d(F_g, F_int, kernel_size=1, stride=1, padding=0, bias=True),
+            nn.BatchNorm2d(F_int)
+        )
+        self.W_x = nn.Sequential(
+            nn.Conv2d(F_l, F_int, kernel_size=1, stride=1, padding=0, bias=True),
+            nn.BatchNorm2d(F_int)
+        )
+        self.psi = nn.Sequential(
+            nn.Conv2d(F_int, 1, kernel_size=1, stride=1, padding=0, bias=True),
+            nn.BatchNorm2d(1),
+            nn.Sigmoid()
+        )
+        self.relu = nn.ReLU(inplace=True)
+
+
+    def forward(self, g, x):
+        g1 = self.W_g(g)
+        x1 = self.W_x(x)
+        psi = self.relu(g1 + x1)
+        psi = self.psi(psi)
+        return x * psi
+
+
 
 class Type2Model(nn.Module):
     def initialize_weights(self):
@@ -287,10 +352,10 @@ class Type2Model(nn.Module):
             elif isinstance(m, nn.Linear):
                 init.kaiming_normal_(m.weight, nonlinearity='relu')
                 
-    def __init__(self, MRI='T1'):
+    def __init__(self, MRI='T1', unet=UNet3):
         super().__init__()
         self.MRI = MRI
-        self.net = UNet3()
+        self.net = unet()
         self.initialize_weights()
     
     def forward(self, x):
