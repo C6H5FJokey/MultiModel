@@ -481,8 +481,8 @@ class CustomDataset1(Dataset):
         self.t2 = torch.cat(t2)
         self.label = torch.cat(label)
         if self.normalize:
-            MIN_BOUND = 150
-            MAX_BOUND = 3000
+            MIN_BOUND = -100
+            MAX_BOUND = 300
             self.ct = (self.ct - MIN_BOUND) / (MAX_BOUND - MIN_BOUND)
             self.ct = torch.clamp(self.ct, min=0., max=1.0)
             self.pet = (self.pet - self.pet.min()) / (self.pet.max() - self.pet.min())
