@@ -1,24 +1,13 @@
 import torch
-import torch.nn as nn
 import torch.optim as optim
 from torch.utils.tensorboard import SummaryWriter
 from src.models.model import Type2Model
 import os
 import time
-from src.utils import DataAgent, set_seed, save_model_incrementally
+from src.utils import DataAgent, set_seed, save_model_incrementally, log_dice_loss_with_logit
 
 writer = SummaryWriter(os.path.join(os.path.dirname(__file__), '../../logs'))
 
-
-def log_dice_loss_with_logit(y_hat, y, ep=1e-8):
-    ce_loss = nn.BCEWithLogitsLoss()
-    ce_total_loss = ce_loss(y_hat, y)
-    y_hat = torch.sigmoid(y_hat)
-    intersection = torch.sum(y_hat * y)
-    dice = (2. * intersection + ep) / (torch.sum(y_hat) + torch.sum(y) + ep)
-    dice = torch.clamp(dice, min=ep, max=1.0)
-    dice_ce_loss = -1 * torch.log(dice) + ce_total_loss
-    return dice_ce_loss
 
 def train(net, device, train_loader, val_loader, loss_fn=log_dice_loss_with_logit, offset=94, num_epochs=200):
 
