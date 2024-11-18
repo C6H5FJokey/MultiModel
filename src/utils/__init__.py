@@ -1,5 +1,6 @@
 import torch
 import torch.nn.functional as F
+import torch.nn as nn
 import random
 import numpy as np
 from src.data.data_preprocessing import CustomDataset1
@@ -61,26 +62,27 @@ class DataAgent:
         
         plt.subplot(2, 2, 1)
         plt.title('CT')
-        plt.imshow(X[0], cmap=cmap)
+        plt.imshow(X[0].reshape((512, 512)), cmap=cmap)
         if show_contour: plt.contour(y, colors='r', linewidths=1)
         
         plt.subplot(2, 2, 2)
         plt.title('PET')
-        plt.imshow(X[1], cmap=cmap)
+        plt.imshow(X[1].reshape((512, 512)), cmap=cmap)
         if show_contour: plt.contour(y, colors='r', linewidths=1)
         
         plt.subplot(2, 2, 3)
         if MRI == 'T1': 
             plt.title('T1')
-            plt.imshow(X[2], cmap=cmap)
+            plt.imshow(X[2].reshape((512, 512)), cmap=cmap)
             if show_contour: plt.contour(y, colors='r', linewidths=1)
         else:
             plt.title('T2')
-            plt.imshow(X[3], cmap=cmap)
+            plt.imshow(X[3].reshape((512, 512)), cmap=cmap)
             if show_contour: plt.contour(y, colors='r', linewidths=1)
         
         plt.subplot(2, 2, 4)
-        plt.imshow(y, cmap='gray')
+        plt.imshow(y.reshape((512, 512)), cmap='gray')
+    
     
 
 def save_model_incrementally(net, directory, base_name='net'):
@@ -103,3 +105,33 @@ def save_model_incrementally(net, directory, base_name='net'):
     # 保存模型
     torch.save(net.state_dict(), file_path)
     print(f"Model saved as {file_name}")
+    
+
+def log_dice_loss_with_logit(y_hat, y, ep=1e-8):
+    ce_loss = nn.BCEWithLogitsLoss(reduction='none')
+    pixel_wise_ce = ce_loss(y_hat, y)
+    y_hat = torch.sigmoid(y_hat)
+    
+    union = torch.clamp((y_hat+ y) > 0, min=0, max=1).float()
+    union_area = torch.sum(union, dim=(1, 2, 3))
+    
+    weighted_ce = torch.sum(pixel_wise_ce * union, dim=(1, 2, 3)) / (union_area + ep)
+    ce_total_loss = weighted_ce.mean()
+    
+    intersection = torch.sum(y_hat * y, dim=(1, 2, 3))
+    y_hat_sum = torch.sum(y_hat, dim=(1, 2, 3))
+    y_sum = torch.sum(y, dim=(1, 2, 3))
+    dice = (2. * intersection + ep) / (y_hat_sum + y_sum + ep)
+    dice = torch.clamp(dice, min=ep, max=1.0)
+    dice_loss = -torch.log(dice).mean()
+    dice_ce_loss = dice_loss + ce_total_loss
+    return dice_ce_loss
+
+
+def bin_dice_eval_with_logit(y_hat, y, threshold=0.5, ep=1e-8):
+    y_hat = (torch.sigmoid(y_hat) > threshold).float()
+    intersection = torch.sum(y_hat * y, dim=(1, 2, 3))
+    y_hat_sum = torch.sum(y_hat, dim=(1, 2, 3))
+    y_sum = torch.sum(y, dim=(1, 2, 3))
+    union = y_hat_sum + y_sum
+    return (intersection * 2. + ep) / (union + ep)
