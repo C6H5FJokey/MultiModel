@@ -7,7 +7,6 @@ import SimpleITK as sitk
 import torch
 from torch.utils.data import Dataset
 import matplotlib.pyplot as plt
-from skimage import exposure
 
 base_path = os.path.join(os.path.dirname(__file__), '../../data/raw')
 base_save_path = os.path.join(os.path.dirname(__file__), '../../data/processed')
@@ -551,9 +550,11 @@ class CustomDataset1(Dataset):
             CT_MIN_BOUND = -100
             CT_MAX_BOUND = 300
             self.ct = (self.ct - CT_MIN_BOUND) / (CT_MAX_BOUND - CT_MIN_BOUND)
+            self.ct = np.clip(self.ct, 0., 1.)
             PET_MIN_BOUND = 0
             PET_MAX_BOUND = 12
             self.pet = (self.pet - PET_MIN_BOUND) / (PET_MAX_BOUND - PET_MIN_BOUND)
+            self.pet = np.clip(self.pet, 0., 1.)
             self.t1 = (self.t1 - self.t1.min()) / (self.t1.max() - self.t1.min())
             self.t2 = (self.t2 - self.t2.min()) / (self.t2.max() - self.t2.min())
         
