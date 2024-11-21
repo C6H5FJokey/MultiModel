@@ -22,5 +22,6 @@ Thumbs.db
 
 *.tmp
 *.swp
-
+*.pt
+*.npy
 /models/

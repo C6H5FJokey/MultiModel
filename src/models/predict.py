@@ -4,17 +4,20 @@ from src.models.model import Type2Model
 import time
 
 
-def predict(net, device, test_loader, loss_fn=log_dice_loss_with_logit, offset=94):
+def predict(net, device, test_loader, loss_fn=log_dice_loss_with_logit):
     net.eval()
     outputs_l = []
     labels_l = []
     loss_l = []
     dice_l = []
     timer_tik = time.time()
+    offset= 94 if not net.use_padding else 0
     with torch.no_grad():
         for inputs, labels in test_loader:
             inputs = tuple(input_tensor.to(device) for input_tensor in inputs)
-            labels = labels[:, :, offset:-offset, offset:-offset].to(device)
+            if offset > 0:
+                labels = labels[:, :, offset:-offset, offset:-offset]
+            labels = labels.to(device)
             labels_l.append(labels)
             outputs = net(inputs)
             outputs_l.append(outputs.detach())
