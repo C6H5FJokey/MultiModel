@@ -137,6 +137,7 @@ def log_dice_loss_with_logit(y_hat, y, ep=1e-8):
     pixel_wise_ce = ce_loss(y_hat, y)
     ce_total_loss = pixel_wise_ce
     
+    y_hat = torch.sigmoid(y_hat)
     intersection = torch.sum(y_hat * y, dim=(1, 2, 3))
     y_hat_sum = torch.sum(y_hat, dim=(1, 2, 3))
     y_sum = torch.sum(y, dim=(1, 2, 3))
@@ -152,8 +153,8 @@ def ce_loss_with_logit(y_hat, y, ep=1e-8):
         y = y.unsqueeze(1)
     ce_loss = nn.BCEWithLogitsLoss(reduction='none')
     pixel_wise_ce = ce_loss(y_hat, y)
-    y_hat = torch.sigmoid(y_hat)
     
+    y_hat = torch.sigmoid(y_hat)
     union = torch.clamp(y_hat + y, min=0, max=1)
     union_area = torch.sum(union, dim=(1, 2, 3))
     
