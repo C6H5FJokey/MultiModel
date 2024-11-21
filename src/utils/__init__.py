@@ -107,7 +107,7 @@ def save_model_incrementally(net, directory, base_name='net'):
     print(f"Model saved as {file_name}")
     
 
-def log_dice_loss_with_logit(y_hat, y, ep=1e-8):
+def log_dice_ce_loss_with_logit(y_hat, y, ep=1e-8):
     if len(y.shape) == 3:
         y = y.unsqueeze(1)
     ce_loss = nn.BCEWithLogitsLoss(reduction='none')
@@ -128,6 +128,39 @@ def log_dice_loss_with_logit(y_hat, y, ep=1e-8):
     dice_loss = -torch.log(dice).mean()
     dice_ce_loss = dice_loss + ce_total_loss
     return dice_ce_loss
+
+
+def log_dice_loss_with_logit(y_hat, y, ep=1e-8):
+    if len(y.shape) == 3:
+        y = y.unsqueeze(1)
+    ce_loss = nn.BCEWithLogitsLoss()
+    pixel_wise_ce = ce_loss(y_hat, y)
+    ce_total_loss = pixel_wise_ce
+    
+    intersection = torch.sum(y_hat * y, dim=(1, 2, 3))
+    y_hat_sum = torch.sum(y_hat, dim=(1, 2, 3))
+    y_sum = torch.sum(y, dim=(1, 2, 3))
+    dice = (2. * intersection + ep) / (y_hat_sum + y_sum + ep)
+    dice = torch.clamp(dice, min=ep, max=1.0)
+    dice_loss = -torch.log(dice).mean()
+    dice_ce_loss = dice_loss + ce_total_loss
+    return dice_ce_loss
+
+
+def ce_loss_with_logit(y_hat, y, ep=1e-8):
+    if len(y.shape) == 3:
+        y = y.unsqueeze(1)
+    ce_loss = nn.BCEWithLogitsLoss(reduction='none')
+    pixel_wise_ce = ce_loss(y_hat, y)
+    y_hat = torch.sigmoid(y_hat)
+    
+    union = torch.clamp(y_hat + y, min=0, max=1)
+    union_area = torch.sum(union, dim=(1, 2, 3))
+    
+    weighted_ce = torch.sum(pixel_wise_ce * union, dim=(1, 2, 3)) / (union_area + ep)
+    ce_total_loss = weighted_ce.mean()
+    return ce_total_loss
+    
 
 
 def bin_dice_eval_with_logit(y_hat, y, threshold=0.5, ep=1e-8):
