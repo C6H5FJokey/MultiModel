@@ -35,7 +35,7 @@ def set_seed(seed):
 
 
 class DataAgent:
-    def __init__(self, num_blocks=12):
+    def __init__(self, num_blocks=15):
         self.dataset = CustomDataset1(num_blocks)
         self.total_size = total_size = len(self.dataset)
         self.train_size = train_size = int(0.8 * total_size)  # 80% 用于训练
@@ -108,11 +108,13 @@ def save_model_incrementally(net, directory, base_name='net'):
     
 
 def log_dice_loss_with_logit(y_hat, y, ep=1e-8):
+    if len(y.shape) == 3:
+        y = y.unsqueeze(1)
     ce_loss = nn.BCEWithLogitsLoss(reduction='none')
     pixel_wise_ce = ce_loss(y_hat, y)
     y_hat = torch.sigmoid(y_hat)
     
-    union = torch.clamp((y_hat+ y) > 0, min=0, max=1).float()
+    union = torch.clamp(y_hat + y, min=0, max=1)
     union_area = torch.sum(union, dim=(1, 2, 3))
     
     weighted_ce = torch.sum(pixel_wise_ce * union, dim=(1, 2, 3)) / (union_area + ep)
@@ -129,6 +131,8 @@ def log_dice_loss_with_logit(y_hat, y, ep=1e-8):
 
 
 def bin_dice_eval_with_logit(y_hat, y, threshold=0.5, ep=1e-8):
+    if len(y.shape) == 3:
+        y = y.unsqueeze(1)
     y_hat = (torch.sigmoid(y_hat) > threshold).float()
     intersection = torch.sum(y_hat * y, dim=(1, 2, 3))
     y_hat_sum = torch.sum(y_hat, dim=(1, 2, 3))

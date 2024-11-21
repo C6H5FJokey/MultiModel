@@ -62,42 +62,44 @@ class Encoder1(nn.Module):
         return self.net(x)
 
 class Encoder2(nn.Module):
-    def __init__(self):
+    def __init__(self, use_padding=False):
         super().__init__()
+        self.use_padding = use_padding
+        padding = int(use_padding)
         self.layer1 = nn.Sequential(
-            nn.Conv2d(1, 64, 3, padding=1), 
+            nn.Conv2d(1, 64, 3, padding=padding), 
             nn.BatchNorm2d(64),
             nn.LeakyReLU(0.2),
-            nn.Conv2d(64, 64, 3, padding=1), 
+            nn.Conv2d(64, 64, 3, padding=padding), 
             nn.BatchNorm2d(64),
             nn.LeakyReLU(0.2),
             )
         self.layer2 = nn.Sequential(
-            nn.Conv2d(64, 128, 3, padding=1),
+            nn.Conv2d(64, 128, 3, padding=padding),
             nn.BatchNorm2d(128),
             nn.LeakyReLU(0.2),
-            nn.Conv2d(128, 128, 3, padding=1),
+            nn.Conv2d(128, 128, 3, padding=padding),
             nn.BatchNorm2d(128),
             nn.LeakyReLU(0.2),
             )
         self.layer3 = nn.Sequential(
-            nn.Conv2d(128, 256, 3, padding=1),
+            nn.Conv2d(128, 256, 3, padding=padding),
             nn.BatchNorm2d(256),
             nn.LeakyReLU(0.2),
-            nn.Conv2d(256, 256, 3, padding=1),
+            nn.Conv2d(256, 256, 3, padding=padding),
             nn.BatchNorm2d(256),
             nn.LeakyReLU(0.2),
             )
         self.layer4 = nn.Sequential(
-            nn.Conv2d(256, 512, 3, padding=1),
+            nn.Conv2d(256, 512, 3, padding=padding),
             nn.BatchNorm2d(512),
             nn.LeakyReLU(0.2),
-            nn.Conv2d(512, 512, 3, padding=1),
+            nn.Conv2d(512, 512, 3, padding=padding),
             nn.BatchNorm2d(512),
             nn.LeakyReLU(0.2),
             )
         self.layer5 = nn.Sequential(
-            nn.Conv2d(512, 1024, 3, padding=1),
+            nn.Conv2d(512, 1024, 3, padding=padding),
             nn.BatchNorm2d(1024),
             nn.LeakyReLU(0.2),
             )
@@ -107,31 +109,33 @@ class Encoder2(nn.Module):
         x2 = self.layer2(F.max_pool2d(x1, 2))
         x3 = self.layer3(F.max_pool2d(x2, 2))
         x4 = self.layer4(F.max_pool2d(x3, 2))
-        y =  self.layer5(F.max_pool2d(x4, 2))
+        y =  F.max_pool2d(x4, 2)
         return (y, x1, x2, x3, x4)
 
 
 class Encoder3(nn.Module):
-    def __init__(self):
+    def __init__(self, use_padding=False):
         super().__init__()
+        self.use_padding = use_padding
+        padding = int(use_padding)
         self.layer1 = nn.Sequential(
-            nn.Conv2d(1, 64, 3), nn.ReLU(),
-            nn.Conv2d(64, 64, 3), nn.ReLU(),
+            nn.Conv2d(1, 64, 3, padding=padding), nn.ReLU(),
+            nn.Conv2d(64, 64, 3, padding=padding), nn.ReLU(),
             )
         self.layer2 = nn.Sequential(
-            nn.Conv2d(64, 128, 3), nn.ReLU(),
-            nn.Conv2d(128, 128, 3), nn.ReLU(),
+            nn.Conv2d(64, 128, 3, padding=padding), nn.ReLU(),
+            nn.Conv2d(128, 128, 3, padding=padding), nn.ReLU(),
             )
         self.layer3 = nn.Sequential(
-            nn.Conv2d(128, 256, 3), nn.ReLU(),
-            nn.Conv2d(256, 256, 3), nn.ReLU(),
+            nn.Conv2d(128, 256, 3, padding=padding), nn.ReLU(),
+            nn.Conv2d(256, 256, 3, padding=padding), nn.ReLU(),
             )
         self.layer4 = nn.Sequential(
-            nn.Conv2d(256, 512, 3), nn.ReLU(),
-            nn.Conv2d(512, 512, 3), nn.ReLU(),
+            nn.Conv2d(256, 512, 3, padding=padding), nn.ReLU(),
+            nn.Conv2d(512, 512, 3, padding=padding), nn.ReLU(),
             )
         self.layer5 = nn.Sequential(
-            nn.Conv2d(512, 1024, 3), nn.ReLU(),
+            nn.Conv2d(512, 1024, 3, padding=padding), nn.ReLU(),
             )
     
     def forward(self, x):
@@ -146,104 +150,121 @@ class Encoder3(nn.Module):
 
 
 class Decoder2(nn.Module):
-    def __init__(self):
+    def __init__(self, use_padding=False):
         super().__init__()
+        self.use_padding = use_padding
+        padding = int(use_padding)
         self.layer5 = nn.Sequential(
-            nn.Conv2d(1024*3, 1024, 3),
+            nn.Conv2d(512*3, 1024, 3, padding=padding),
             nn.BatchNorm2d(1024),
             nn.LeakyReLU(0.2),
-            nn.Conv2d(1024, 1024, 3), 
+            nn.Conv2d(1024, 1024, 3, padding=padding), 
             nn.BatchNorm2d(1024),
             nn.LeakyReLU(0.2),
             )
         self.up_conv4 = nn.ConvTranspose2d(1024, 512, kernel_size=4, stride=2, padding=1)
         self.layer4 = nn.Sequential(
-            nn.Conv2d(512*4, 512, 3), 
+            nn.Conv2d(512*4, 512, 3, padding=padding), 
             nn.BatchNorm2d(512),
             nn.LeakyReLU(0.2),
-            nn.Conv2d(512, 512, 3), 
+            nn.Conv2d(512, 512, 3, padding=padding), 
             nn.BatchNorm2d(512),
             nn.LeakyReLU(0.2),
             )
         self.up_conv3 = nn.ConvTranspose2d(512, 256, kernel_size=4, stride=2, padding=1)
         self.layer3 = nn.Sequential(
-            nn.Conv2d(256*4, 256, 3), 
+            nn.Conv2d(256*4, 256, 3, padding=padding), 
             nn.BatchNorm2d(256),
             nn.LeakyReLU(0.2),
-            nn.Conv2d(256, 256, 3), 
+            nn.Conv2d(256, 256, 3, padding=padding), 
             nn.BatchNorm2d(256),
             nn.LeakyReLU(0.2),
             )
         self.up_conv2 = nn.ConvTranspose2d(256, 128, kernel_size=4, stride=2, padding=1)
         self.layer2 = nn.Sequential(
-            nn.Conv2d(128*4, 128, 3), 
+            nn.Conv2d(128*4, 128, 3, padding=padding), 
             nn.BatchNorm2d(128),
             nn.LeakyReLU(0.2),
-            nn.Conv2d(128, 128, 3), 
+            nn.Conv2d(128, 128, 3, padding=padding), 
             nn.BatchNorm2d(128),
             nn.LeakyReLU(0.2),
             )
         self.up_conv1 = nn.ConvTranspose2d(128, 64, kernel_size=4, stride=2, padding=1)
         self.layer1 = nn.Sequential(
-            nn.Conv2d(64*4, 64, 3), 
+            nn.Conv2d(64*4, 64, 3, padding=padding), 
             nn.BatchNorm2d(64),
             nn.LeakyReLU(0.2),
-            nn.Conv2d(64, 64, 3), 
+            nn.Conv2d(64, 64, 3, padding=padding), 
             nn.BatchNorm2d(64),
             nn.LeakyReLU(0.2),
             nn.Conv2d(64, 1, 1)
             )
         
     def forward(self, y1, y2, y3):
-        x4 = self.up_conv4(self.layer5(torch.cat((y1[0], y2[0], y3[0]), dim=1)))
-        x3 = self.up_conv3(self.layer4(torch.cat((y1[4], y2[4], y3[4], x4), dim=1)))
-        x2 = self.up_conv2(self.layer3(torch.cat((y1[3], y2[3], y3[3], x3), dim=1)))
-        x1 = self.up_conv1(self.layer2(torch.cat((y1[2], y2[2], y3[2], x2), dim=1)))
-        y = self.layer1(torch.cat((y1[1], y2[1], y3[1], x1), dim=1))
+        E4, E3, E2, E1 = 4, 16, 41, 90
+        if self.use_padding:
+            x4 = self.up_conv4(self.layer5(torch.cat((y1[0], y2[0], y3[0]), dim=1)))
+            x3 = self.up_conv3(self.layer4(torch.cat((y1[4], y2[4], y3[4], x4), dim=1)))
+            x2 = self.up_conv2(self.layer3(torch.cat((y1[3], y2[3], y3[3], x3), dim=1)))
+            x1 = self.up_conv1(self.layer2(torch.cat((y1[2], y2[2], y3[2], x2), dim=1)))
+            y = self.layer1(torch.cat((y1[1], y2[1], y3[1], x1), dim=1))
+        else:
+            x4 = self.up_conv4(self.layer5(torch.cat((y1[0], y2[0], y3[0]), dim=1)))
+            x3 = self.up_conv3(self.layer4(torch.cat((y1[4][:, :, E4:-E4, E4:-E4], y2[4][:, :, E4:-E4, E4:-E4], y3[4][:, :, E4:-E4, E4:-E4], x4), dim=1)))
+            x2 = self.up_conv2(self.layer3(torch.cat((y1[3][:, :, E3:-E3-1, E3:-E3-1], y2[3][:, :, E3:-E3-1, E3:-E3-1], y3[3][:, :, E3:-E3-1, E3:-E3-1], x3), dim=1)))
+            x1 = self.up_conv1(self.layer2(torch.cat((y1[2][:, :, E2:-E2, E2:-E2], y2[2][:, :, E2:-E2, E2:-E2], y3[2][:, :, E2:-E2, E2:-E2], x2), dim=1)))
+            y = self.layer1(torch.cat((y1[1][:, :, E1:-E1, E1:-E1], y2[1][:, :, E1:-E1, E1:-E1], y3[1][:, :, E1:-E1, E1:-E1], x1), dim=1))
         return y
         
         
         
 class Decoder3(nn.Module):
-    def __init__(self):
+    def __init__(self, use_padding=False):
         super().__init__()
+        self.use_padding = use_padding
+        padding = int(use_padding)
         self.layer5 = nn.Sequential(
-            nn.Conv2d(512*3, 1024, 3), nn.ReLU(),
-            nn.Conv2d(1024, 1024, 3), nn.ReLU(),
+            nn.Conv2d(512*3, 1024, 3, padding=padding), nn.ReLU(),
+            nn.Conv2d(1024, 1024, 3, padding=padding), nn.ReLU(),
             )
         self.up_conv4 = nn.ConvTranspose2d(1024, 512, kernel_size=4, stride=2, padding=1)
         self.layer4 = nn.Sequential(
-            nn.Conv2d(512*4, 512, 3), nn.ReLU(),
-            nn.Conv2d(512, 512, 3), nn.ReLU(),
+            nn.Conv2d(512*4, 512, 3, padding=padding), nn.ReLU(),
+            nn.Conv2d(512, 512, 3, padding=padding), nn.ReLU(),
             )
         self.up_conv3 = nn.ConvTranspose2d(512, 256, kernel_size=4, stride=2, padding=1)
         self.layer3 = nn.Sequential(
-            nn.Conv2d(256*4, 256, 3), nn.ReLU(),
-            nn.Conv2d(256, 256, 3), nn.ReLU(),
+            nn.Conv2d(256*4, 256, 3, padding=padding), nn.ReLU(),
+            nn.Conv2d(256, 256, 3, padding=padding), nn.ReLU(),
             )
         self.up_conv2 = nn.ConvTranspose2d(256, 128, kernel_size=4, stride=2, padding=1)
         self.layer2 = nn.Sequential(
-            nn.Conv2d(128*4, 128, 3), nn.ReLU(),
-            nn.Conv2d(128, 128, 3), nn.ReLU(),
+            nn.Conv2d(128*4, 128, 3, padding=padding), nn.ReLU(),
+            nn.Conv2d(128, 128, 3, padding=padding), nn.ReLU(),
             )
         self.up_conv1 = nn.ConvTranspose2d(128, 64, kernel_size=4, stride=2, padding=1)
         self.layer1 = nn.Sequential(
-            nn.Conv2d(64*4, 64, 3), nn.ReLU(),
-            nn.Conv2d(64, 64, 3), nn.ReLU(),
+            nn.Conv2d(64*4, 64, 3, padding=padding), nn.ReLU(),
+            nn.Conv2d(64, 64, 3, padding=padding), nn.ReLU(),
             nn.Conv2d(64, 1, 1)
             )
         
     def forward(self, y1, y2, y3):
-        E4 = 4
-        E3 = 16
-        E2 = 41
-        E1 = 90
-        x4 = self.up_conv4(self.layer5(torch.cat((y1[0], y2[0], y3[0]), dim=1)))
-        x3 = self.up_conv3(self.layer4(torch.cat((y1[4][:, :, E4:-E4, E4:-E4], y2[4][:, :, E4:-E4, E4:-E4], y3[4][:, :, E4:-E4, E4:-E4], x4), dim=1)))
-        x2 = self.up_conv2(self.layer3(torch.cat((y1[3][:, :, E3:-E3-1, E3:-E3-1], y2[3][:, :, E3:-E3-1, E3:-E3-1], y3[3][:, :, E3:-E3-1, E3:-E3-1], x3), dim=1)))
-        x1 = self.up_conv1(self.layer2(torch.cat((y1[2][:, :, E2:-E2, E2:-E2], y2[2][:, :, E2:-E2, E2:-E2], y3[2][:, :, E2:-E2, E2:-E2], x2), dim=1)))
-        y = self.layer1(torch.cat((y1[1][:, :, E1:-E1, E1:-E1], y2[1][:, :, E1:-E1, E1:-E1], y3[1][:, :, E1:-E1, E1:-E1], x1), dim=1))
+        E4, E3, E2, E1 = 4, 16, 41, 90
+        if self.use_padding:
+            x4 = self.up_conv4(self.layer5(torch.cat((y1[0], y2[0], y3[0]), dim=1)))
+            x3 = self.up_conv3(self.layer4(torch.cat((y1[4], y2[4], y3[4], x4), dim=1)))
+            x2 = self.up_conv2(self.layer3(torch.cat((y1[3], y2[3], y3[3], x3), dim=1)))
+            x1 = self.up_conv1(self.layer2(torch.cat((y1[2], y2[2], y3[2], x2), dim=1)))
+            y = self.layer1(torch.cat((y1[1], y2[1], y3[1], x1), dim=1))
+        else:
+            x4 = self.up_conv4(self.layer5(torch.cat((y1[0], y2[0], y3[0]), dim=1)))
+            x3 = self.up_conv3(self.layer4(torch.cat((y1[4][:, :, E4:-E4, E4:-E4], y2[4][:, :, E4:-E4, E4:-E4], y3[4][:, :, E4:-E4, E4:-E4], x4), dim=1)))
+            x2 = self.up_conv2(self.layer3(torch.cat((y1[3][:, :, E3:-E3-1, E3:-E3-1], y2[3][:, :, E3:-E3-1, E3:-E3-1], y3[3][:, :, E3:-E3-1, E3:-E3-1], x3), dim=1)))
+            x1 = self.up_conv1(self.layer2(torch.cat((y1[2][:, :, E2:-E2, E2:-E2], y2[2][:, :, E2:-E2, E2:-E2], y3[2][:, :, E2:-E2, E2:-E2], x2), dim=1)))
+            y = self.layer1(torch.cat((y1[1][:, :, E1:-E1, E1:-E1], y2[1][:, :, E1:-E1, E1:-E1], y3[1][:, :, E1:-E1, E1:-E1], x1), dim=1))
         return y
+        
         
 
 class UNet1(nn.Module):
@@ -280,39 +301,47 @@ class UNet1(nn.Module):
 
 
 class UNet2(nn.Module):
-    def __init__(self):
+    def __init__(self, use_padding=False):
         super().__init__()
         encoder = Encoder2
         decoder = Decoder2
-        self.encoder1 = encoder()
-        self.encoder2 = encoder()
-        self.encoder3 = encoder()
-        self.decoder = decoder()
+        self.use_padding = use_padding
+        self.encoder1 = encoder(use_padding=use_padding)
+        self.encoder2 = encoder(use_padding=use_padding)
+        self.encoder3 = encoder(use_padding=use_padding)
+        self.decoder = decoder(use_padding=use_padding)
         
-    def forward(self, ct, pet, mri):
-        ct = self.encoder1(ct)
-        pet = self.encoder2(pet)
-        mri = self.encoder3(mri)
+    def forward(self, ct, pet, mri, use_ct=True, use_pet=True, use_mri=True):
+        ref_encoding = self.encoder1(ct)
+        zero_encoding = tuple(torch.zeros_like(tensor) for tensor in ref_encoding)
+        ct = self.encoder1(ct) if use_ct else zero_encoding
+        pet = self.encoder2(pet) if use_pet else zero_encoding
+        mri = self.encoder3(mri) if use_mri else zero_encoding
         x = self.decoder(ct, pet, mri)
         return x
 
 
 class UNet3(nn.Module):
-    def __init__(self):
+    def __init__(self, use_padding=False):
         super().__init__()
         encoder = Encoder3
         decoder = Decoder3
-        self.encoder1 = encoder()
-        self.encoder2 = encoder()
-        self.encoder3 = encoder()
-        self.decoder = decoder()
+        self.use_padding = use_padding
+        self.encoder1 = encoder(use_padding)
+        self.encoder2 = encoder(use_padding)
+        self.encoder3 = encoder(use_padding)
+        self.decoder = decoder(use_padding)
         
-    def forward(self, ct, pet, mri):
-        ct = self.encoder1(ct)
-        pet = self.encoder2(pet)
-        mri = self.encoder3(mri)
+    def forward(self, ct, pet, mri, use_ct=True, use_pet=True, use_mri=True):
+        ref_encoding = self.encoder1(ct)
+        zero_encoding = tuple(torch.zeros_like(tensor) for tensor in ref_encoding)
+        ct = self.encoder1(ct) if use_ct else zero_encoding
+        pet = self.encoder2(pet) if use_pet else zero_encoding
+        mri = self.encoder3(mri) if use_mri else zero_encoding
         x = self.decoder(ct, pet, mri)
         return x
+    
+    
 
 
 class AttentionBlock(nn.Module):
@@ -352,17 +381,18 @@ class Type2Model(nn.Module):
             elif isinstance(m, nn.Linear):
                 init.kaiming_normal_(m.weight, nonlinearity='relu')
                 
-    def __init__(self, MRI='T1', unet=UNet3):
+    def __init__(self, MRI='T1', unet=UNet3, use_padding=False):
         super().__init__()
         self.MRI = MRI
-        self.net = unet()
+        self.use_padding = use_padding
+        self.net = unet(use_padding=use_padding)
         self.initialize_weights()
     
-    def forward(self, x):
+    def forward(self, x, use_ct=True, use_pet=True, use_mri=True):
         if self.MRI == 'T1':
-            return self.net(x[0], x[1], x[2])
+            return self.net(x[0], x[1], x[2], use_ct=True, use_pet=True, use_mri=True)
         elif self.MRI == 'T2':
-            return self.net(x[0], x[1], x[3])
+            return self.net(x[0], x[1], x[3], use_ct=True, use_pet=True, use_mri=True)
         else:
             raise ValueError(f"Unsupported MRI type: {self.MRI}")
         

@@ -5,9 +5,9 @@ import numpy as np
 import cv2
 import SimpleITK as sitk
 import torch
-from torch.utils.data import Dataset, DataLoader
-from torchvision import transforms
+from torch.utils.data import Dataset
 import matplotlib.pyplot as plt
+from skimage import exposure
 
 base_path = os.path.join(os.path.dirname(__file__), '../../data/raw')
 base_save_path = os.path.join(os.path.dirname(__file__), '../../data/processed')
@@ -76,7 +76,7 @@ class ImageAgent:
         ImageAgent.metadata = load_metadata()
     
     def __init__(self, **kwargs):
-        if not metadata:
+        if type(metadata) == type(None):
             ImageAgent._load_metadata()
         self._volumes_points = []
         self._img_data = None
@@ -103,7 +103,7 @@ class ImageAgent:
             self._volumes_points = get_volumes_points(self._st_data)
             self.z_min, self.z_max = z_scoop(self._volumes_points)
             if idx != None:
-                self._img_data = pydicom.dcmread(get_image_path(sts, type_name, idx))
+                self._img_data = pydicom.dcmread(get_image_path(sts, type_name, idx, metadata=metadata))
                 self._mask = [
                     get_mask(self._img_data, self._volumes_points[0]),
                     get_mask(self._img_data, self._volumes_points[1])
@@ -378,6 +378,51 @@ def z_scoop(data):
     return data[:, 2].min(), data[:, 2].max()
 
 
+def apply_rescale(pixel_array, dcm):
+    # 提取必要的 DICOM 标签
+    rescale_slope = float(dcm.RescaleSlope)
+    rescale_intercept = float(dcm.RescaleIntercept)
+    
+    # 应用重缩放
+    pixel_array = pixel_array * rescale_slope + rescale_intercept
+    
+    return pixel_array
+
+def dicom_hhmmss(t):    # dicom存时间格式:小时、分钟、秒(每个占两位),这里转化回秒
+    t = str(t)
+    if len(t) == 5:     # 有些提取时漏了个0，小时的位置只有一位，这里把零补上
+     	t = '0'+t
+    h_t = float(t[0:2])
+    m_t = float(t[2:4])
+    s_t = float(t[4:6])
+    return h_t*3600+m_t*60+s_t
+
+
+def calculate_suv(pixel_array, dcm):
+    """计算 SUV"""
+    # 提取必要的 DICOM 标签
+    patient_weight = float(dcm.PatientWeight)  # 单位：kg
+    injected_dose = float(dcm.RadiopharmaceuticalInformationSequence[0].RadionuclideTotalDose)  # 单位：Bq
+    half_life = float(dcm.RadiopharmaceuticalInformationSequence[0].RadionuclideHalfLife)  # 单位：秒
+    injection_time = dcm.RadiopharmaceuticalInformationSequence[0].RadiopharmaceuticalStartTime
+    acquisition_time = dcm.AcquisitionTime
+    
+    
+    # 计算衰减时间（单位：秒）
+    injection_time = dicom_hhmmss(injection_time.split('.')[0])
+    acquisition_time = dicom_hhmmss(acquisition_time.split('.')[0])
+    decay_time = acquisition_time - injection_time
+    if decay_time < 0:
+        decay_time += 240000  # 处理跨午夜的情况
+    
+    # 计算衰减校正因子
+    decay_correction = np.power(2, -decay_time / half_life)
+    
+    # 计算 SUV
+    suv = pixel_array * patient_weight * 1000. / (injected_dose * decay_correction)
+    
+    return suv
+
 
 def spawn_datasets_and_labels(mask_type=None):
     metadata_groups = groupby_metadata()
@@ -395,24 +440,28 @@ def spawn_datasets_and_labels(mask_type=None):
                 dicom_data = pydicom.dcmread(file_path)
                 volumes_points = get_volumes_points(dicom_data)
                 break
-        min_files = float('inf')
-        min_type = ''
-        for index, row in img_group.loc[:, ['type', 'File Location']].iterrows():
-            num_files = len(os.listdir(os.path.join(base_path, row['File Location'])))
-            if num_files < min_files:
-                min_files = num_files
-                min_type = row['type']
-        folder = img_group.loc[img_group['type'] == min_type, 'File Location'].values[0]
-        z_coords = []
-        for filename in os.listdir(os.path.join(base_path, folder)):
+        folder1 = img_group.loc[img_group['type'] == 'T1', 'File Location'].values[0]
+        folder2 = img_group.loc[img_group['type'] == 'T2', 'File Location'].values[0]
+        z_coords1 = []
+        for filename in os.listdir(os.path.join(base_path, folder1)):
             if filename.endswith('.dcm'):
-                file_path = os.path.join(base_path, folder, filename)
+                file_path = os.path.join(base_path, folder1, filename)
                 dicom_data = pydicom.dcmread(file_path)
-                z_coords.append(dicom_data.ImagePositionPatient[2])
-                sitk_data = sitk.ReadImage(file_path)
-        z_min = min(z_coords)
-        z_max = max(z_coords)
-        z_coords = np.array(z_coords)
+                z_coords1.append(dicom_data.ImagePositionPatient[2])
+        z_coords2 = []
+        for filename in os.listdir(os.path.join(base_path, folder2)):
+            if filename.endswith('.dcm'):
+                file_path = os.path.join(base_path, folder2, filename)
+                dicom_data = pydicom.dcmread(file_path)
+                z_coords2.append(dicom_data.ImagePositionPatient[2])
+        z_min1 = min(z_coords1)
+        z_max1 = max(z_coords1)
+        z_min2 = min(z_coords2)
+        z_max2 = max(z_coords2)
+        z_min = max(z_min1, z_min2)
+        z_max = min(z_max1, z_max2)
+        z_coords = np.array([z_coord for z_coord in z_coords1 if z_coord > z_min - 1 and z_coord < z_max + 1])
+        
         targets = {}
         folder = img_group.loc[img_group['type'] == 'CT', 'File Location'].values[0]
         masks = [None] * len(z_coords)
@@ -429,39 +478,57 @@ def spawn_datasets_and_labels(mask_type=None):
                 masks[z_index] = mask
                 # np.save(os.path.join(base_save_path, 'labels', f'{name}.npy'), mask)
                 sitk_data = sitk.ReadImage(file_path)
-                targets[z_index] = (
-                    sitk_data.GetSpacing(),
-                    sitk_data.GetOrigin(),
-                    sitk_data.GetSize(),
-                    sitk_data.GetDirection()
-                    )
-                np.save(os.path.join(base_save_path, 'datasets', f'{name}_CT.npy'), dicom_data.pixel_array)
-                datasets[z_index] = dicom_data.pixel_array
+                # targets[z_index] = (
+                #     sitk_data.GetSpacing(),
+                #     sitk_data.GetOrigin(),
+                #     sitk_data.GetSize(),
+                #     sitk_data.GetDirection()
+                #     )
+                resample = sitk.ResampleImageFilter()
+                resample.SetOutputSpacing(sitk_data.GetSpacing())
+                resample.SetSize(sitk_data.GetSize())
+                resample.SetOutputDirection(sitk_data.GetDirection())
+                resample.SetOutputOrigin(sitk_data.GetOrigin())
+                resample.SetInterpolator(sitk.sitkLinear)
+                targets[z_index] = resample
+                pixel_array = sitk.GetArrayFromImage(sitk_data)
+                # np.save(os.path.join(base_save_path, 'datasets', f'{name}_CT.npy'), pixel_array)
+                datasets[z_index] = pixel_array
         datasets = np.stack(datasets)
         masks = np.stack(masks)
         np.save(os.path.join(base_save_path, 'labels', f'{name}.npy'), masks)
         np.save(os.path.join(base_save_path, 'datasets', f'{name}_CT.npy'), datasets)
         for type_name in ['PET', 'T1', 'T2']:
             folder = img_group.loc[img_group['type'] == type_name, 'File Location'].values[0]
+            datasets = [None] * len(z_coords)
             for filename in os.listdir(os.path.join(base_path, folder)):
                 if filename.endswith('.dcm'):
                     file_path = os.path.join(base_path, folder, filename)
                     dicom_data = pydicom.dcmread(file_path)
                     z_coord = dicom_data.ImagePositionPatient[2]
-                    if z_coord < z_min or z_coord > z_max: continue
+                    if type_name == 'PET' and name in ['STS_031']: z_coord -= 1.5
+                    if z_coord < z_min - 1 or z_coord > z_max + 1: continue
                     z_index = np.abs(z_coords - z_coord).argmin()
                     z_coord = z_coords[z_index]
                     sitk_data = sitk.ReadImage(file_path)
-                    sitk_data = resample_image(sitk_data, *targets[z_index])
+                    # sitk_data = resample_image(sitk_data, *targets[z_index])
+                    sitk_data = targets[z_index].Execute(sitk_data)
+                    pixel_array = sitk.GetArrayFromImage(sitk_data)
+                    if type_name == 'PET':
+                        pixel_array = calculate_suv(pixel_array, dicom_data)
                     # np.save(os.path.join(base_save_path, 'datasets', f'{name}_{type_name}.npy'), sitk.GetArrayFromImage(sitk_data))
-                    datasets[z_index] = sitk.GetArrayFromImage(sitk_data)
+                    datasets[z_index] = pixel_array
+                    print(f'type_name: {type_name}, z_index: {z_index}, max: {pixel_array.max()}')
             datasets = np.stack(datasets)
             np.save(os.path.join(base_save_path, 'datasets', f'{name}_{type_name}.npy'), datasets)
         print("\n")
     
 
+
+
+
 class CustomDataset1(Dataset):
-    def __init__(self, num_blocks=12, normalize=True):
+    def __init__(self, num_blocks=15, normalize=True):
         self.normalize = normalize
         ct = []
         pet = []
@@ -470,22 +537,23 @@ class CustomDataset1(Dataset):
         label = []
         for num in range(num_blocks):
             num = f"{num:02d}" 
-            ct.append(torch.load(os.path.join(base_save_path, f'CT_{num}.pt'), weights_only=True))
-            pet.append(torch.load(os.path.join(base_save_path, f'PET_{num}.pt'), weights_only=True))
-            t1.append(torch.load(os.path.join(base_save_path, f'T1_{num}.pt'), weights_only=True))
-            t2.append(torch.load(os.path.join(base_save_path, f'T2_{num}.pt'), weights_only=True))
-            label.append(torch.load(os.path.join(base_save_path, f'label_{num}.pt'), weights_only=True))
-        self.ct = torch.cat(ct)
-        self.pet = torch.cat(pet)
-        self.t1 = torch.cat(t1)
-        self.t2 = torch.cat(t2)
-        self.label = torch.cat(label)
+            ct.append(np.load(os.path.join(base_save_path, f'CT_{num}.npy')))
+            pet.append(np.load(os.path.join(base_save_path, f'PET_{num}.npy')))
+            t1.append(np.load(os.path.join(base_save_path, f'T1_{num}.npy')))
+            t2.append(np.load(os.path.join(base_save_path, f'T2_{num}.npy')))
+            label.append(np.load(os.path.join(base_save_path, f'label_{num}.npy')))
+        self.ct = np.concatenate(ct).astype(np.float32)
+        self.pet = np.concatenate(pet).astype(np.float32)
+        self.t1 = np.concatenate(t1).astype(np.float32)
+        self.t2 = np.concatenate(t2).astype(np.float32)
+        self.label = np.concatenate(label).astype(np.float32)
         if self.normalize:
-            MIN_BOUND = -100
-            MAX_BOUND = 300
-            self.ct = (self.ct - MIN_BOUND) / (MAX_BOUND - MIN_BOUND)
-            self.ct = torch.clamp(self.ct, min=0., max=1.0)
-            self.pet = (self.pet - self.pet.min()) / (self.pet.max() - self.pet.min())
+            CT_MIN_BOUND = -100
+            CT_MAX_BOUND = 300
+            self.ct = (self.ct - CT_MIN_BOUND) / (CT_MAX_BOUND - CT_MIN_BOUND)
+            PET_MIN_BOUND = 0
+            PET_MAX_BOUND = 12
+            self.pet = (self.pet - PET_MIN_BOUND) / (PET_MAX_BOUND - PET_MIN_BOUND)
             self.t1 = (self.t1 - self.t1.min()) / (self.t1.max() - self.t1.min())
             self.t2 = (self.t2 - self.t2.min()) / (self.t2.max() - self.t2.min())
         
@@ -505,7 +573,7 @@ class CustomDataset1(Dataset):
     
 class CustomDataset(Dataset):
     def __init__(self, normalize=True):
-        num_blocks = 12
+        num_blocks = 15
         data_dir = base_save_path
         self.ct_files = [os.path.join(data_dir, f'CT_{i:02d}.pt') for i in range(num_blocks)]
         self.pet_files = [os.path.join(data_dir, f'PET_{i:02d}.pt') for i in range(num_blocks)]
@@ -536,7 +604,7 @@ class CustomDataset(Dataset):
         return (ct_block[sample_idx], pet_block[sample_idx], t1_block[sample_idx], t2_block[sample_idx]), label_block[sample_idx]
     
 def split_batch():
-    batch_num = 12
+    batch_num = 15
     for type_name in ['CT', 'PET', 'T1', 'T2']:
         dataset = []
         for num in range(1, 52):
@@ -545,8 +613,9 @@ def split_batch():
         dataset = np.concatenate((dataset))
         batch_size = dataset.shape[0]//batch_num
         for i in range(batch_num):
-            print(f'save: {type_name}_{i:02d}.pt batch_size: {batch_size}')
-            torch.save(torch.from_numpy(dataset[i*batch_size:(i+1)*batch_size]).float().unsqueeze(1), os.path.join(base_save_path, f'{type_name}_{i:02d}.pt'))
+            print(f'save: {type_name}_{i:02d}.npy batch_size: {batch_size}')
+            # torch.save(torch.from_numpy(dataset[i*batch_size:(i+1)*batch_size]).float().unsqueeze(1), os.path.join(base_save_path, f'{type_name}_{i:02d}.pt'))
+            np.save(os.path.join(base_save_path, f'{type_name}_{i:02d}.npy'), dataset[i*batch_size:(i+1)*batch_size])
             
     dataset = []
     for num in range(1, 52):
@@ -555,8 +624,9 @@ def split_batch():
     dataset = np.concatenate((dataset))
     batch_size = dataset.shape[0]//batch_num
     for i in range(batch_num):
-        print(f'save : label_{i:02d}.pt batch_size: {batch_size}')
-        torch.save(torch.from_numpy(dataset[i*batch_size:(i+1)*batch_size]).float().unsqueeze(1), os.path.join(base_save_path, f'label_{i:02d}.pt'))
+        print(f'save : label_{i:02d}.npy batch_size: {batch_size}')
+        # torch.save(torch.from_numpy(dataset[i*batch_size:(i+1)*batch_size]).float().unsqueeze(1), os.path.join(base_save_path, f'label_{i:02d}.pt'))
+        np.save(os.path.join(base_save_path, f'label_{i:02d}.npy'), dataset[i*batch_size:(i+1)*batch_size])
     
 
 if __name__ == '__main__':
