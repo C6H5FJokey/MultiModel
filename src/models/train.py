@@ -23,7 +23,7 @@ def train(net, device, train_loader, val_loader, loss_fn=log_dice_loss_with_logi
         for i, (inputs, labels) in enumerate(train_loader):
             inputs = tuple(input_tensor.to(device) for input_tensor in inputs)
             if offset > 0:
-                labels = labels[:, :, offset:-offset, offset:-offset]
+                labels = labels[:, offset:-offset, offset:-offset]
             labels = labels.to(device)
             optimizer.zero_grad()
             outputs = net(inputs)

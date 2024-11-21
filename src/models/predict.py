@@ -16,7 +16,7 @@ def predict(net, device, test_loader, loss_fn=log_dice_loss_with_logit):
         for inputs, labels in test_loader:
             inputs = tuple(input_tensor.to(device) for input_tensor in inputs)
             if offset > 0:
-                labels = labels[:, :, offset:-offset, offset:-offset]
+                labels = labels[:, offset:-offset, offset:-offset]
             labels = labels.to(device)
             labels_l.append(labels)
             outputs = net(inputs)
