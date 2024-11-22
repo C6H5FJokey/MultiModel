@@ -25,3 +25,19 @@ Thumbs.db
 *.pt
 *.npy
 /models/
+
+# LaTeX auxiliary files
+*.aux
+*.log
+*.out
+*.toc
+*.lof
+*.lot
+*.fls
+*.fdb_latexmk
+
+# Model checkpoints
+src/models/checkpoints/
+
+# Jupyter Notebook checkpoints
+notebooks/.ipynb_checkpoints/

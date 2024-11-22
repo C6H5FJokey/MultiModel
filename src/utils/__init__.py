@@ -7,6 +7,8 @@ from src.data.data_preprocessing import CustomDataset1
 from torch.utils.data import random_split, DataLoader
 import os
 import matplotlib.pyplot as plt
+import gzip
+import shutil
 
 
 def expand_image_to_center(image, target_size=(512, 512)):
@@ -173,3 +175,15 @@ def bin_dice_eval_with_logit(y_hat, y, threshold=0.5, ep=1e-8):
     y_sum = torch.sum(y, dim=(1, 2, 3))
     union = y_hat_sum + y_sum
     return (intersection * 2. + ep) / (union + ep)
+
+
+def save_compressed_checkpoint(state, filename):
+    torch.save(state, filename + '.temp')
+    with open(filename + '.temp', 'rb') as f_in:
+        with gzip.open(filename, 'wb') as f_out:
+            shutil.copyfileobj(f_in, f_out)
+    os.remove(filename + '.temp')
+
+def load_compressed_checkpoint(filename):
+    with gzip.open(filename, 'rb') as f:
+        return torch.load(f)
