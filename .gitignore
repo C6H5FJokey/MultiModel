@@ -41,3 +41,5 @@ src/models/checkpoints/
 
 # Jupyter Notebook checkpoints
 notebooks/.ipynb_checkpoints/
+
+reports/

@@ -81,10 +81,10 @@ def train(net, device, train_loader, val_loader, loss_fn=log_dice_loss_with_logi
             }
             
             if is_best:
-                save_compressed_checkpoint(checkpoint, os.path.join(os.path.dirname(__file__), 'checkpoints', 'best_model.pth.gz'))
+                save_compressed_checkpoint(checkpoint, os.path.join(os.path.dirname(__file__), 'checkpoints'), 'best_model.pth.gz')
             
             if (epoch + 1) % save_interval == 0:
-                save_compressed_checkpoint(checkpoint, os.path.join(os.path.dirname(__file__), 'checkpoints', f'checkpoint_epoch_{epoch+1}.pth.gz'))
+                save_compressed_checkpoint(checkpoint, os.path.join(os.path.dirname(__file__), 'checkpoints'), f'checkpoint_epoch_{epoch+1}.pth.gz')
                 
                 # 保持最近N个checkpoints
                 checkpoints = sorted([f for f in os.listdir(os.path.join(os.path.dirname(__file__), 'checkpoints')) if f.startswith('checkpoint_epoch_')])

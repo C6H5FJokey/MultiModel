@@ -215,7 +215,74 @@ class Decoder2(nn.Module):
             x1 = self.up_conv1(self.layer2(torch.cat((y1[2][:, :, E2:-E2, E2:-E2], y2[2][:, :, E2:-E2, E2:-E2], y3[2][:, :, E2:-E2, E2:-E2], x2), dim=1)))
             y = self.layer1(torch.cat((y1[1][:, :, E1:-E1, E1:-E1], y2[1][:, :, E1:-E1, E1:-E1], y3[1][:, :, E1:-E1, E1:-E1], x1), dim=1))
         return y
+
+
+class DecoderCT(nn.Module):
+    def __init__(self, use_padding=False):
+        super().__init__()
+        self.use_padding = use_padding
+        padding = int(use_padding)
+        self.layer5 = nn.Sequential(
+            nn.Conv2d(512, 1024, 3, padding=padding),
+            nn.BatchNorm2d(1024),
+            nn.LeakyReLU(0.2),
+            nn.Conv2d(1024, 1024, 3, padding=padding), 
+            nn.BatchNorm2d(1024),
+            nn.LeakyReLU(0.2),
+            )
+        self.up_conv4 = nn.ConvTranspose2d(1024, 512, kernel_size=4, stride=2, padding=1)
+        self.layer4 = nn.Sequential(
+            nn.Conv2d(512*2, 512, 3, padding=padding), 
+            nn.BatchNorm2d(512),
+            nn.LeakyReLU(0.2),
+            nn.Conv2d(512, 512, 3, padding=padding), 
+            nn.BatchNorm2d(512),
+            nn.LeakyReLU(0.2),
+            )
+        self.up_conv3 = nn.ConvTranspose2d(512, 256, kernel_size=4, stride=2, padding=1)
+        self.layer3 = nn.Sequential(
+            nn.Conv2d(256*2, 256, 3, padding=padding), 
+            nn.BatchNorm2d(256),
+            nn.LeakyReLU(0.2),
+            nn.Conv2d(256, 256, 3, padding=padding), 
+            nn.BatchNorm2d(256),
+            nn.LeakyReLU(0.2),
+            )
+        self.up_conv2 = nn.ConvTranspose2d(256, 128, kernel_size=4, stride=2, padding=1)
+        self.layer2 = nn.Sequential(
+            nn.Conv2d(128*2, 128, 3, padding=padding), 
+            nn.BatchNorm2d(128),
+            nn.LeakyReLU(0.2),
+            nn.Conv2d(128, 128, 3, padding=padding), 
+            nn.BatchNorm2d(128),
+            nn.LeakyReLU(0.2),
+            )
+        self.up_conv1 = nn.ConvTranspose2d(128, 64, kernel_size=4, stride=2, padding=1)
+        self.layer1 = nn.Sequential(
+            nn.Conv2d(64*2, 64, 3, padding=padding), 
+            nn.BatchNorm2d(64),
+            nn.LeakyReLU(0.2),
+            nn.Conv2d(64, 64, 3, padding=padding), 
+            nn.BatchNorm2d(64),
+            nn.LeakyReLU(0.2),
+            nn.Conv2d(64, 1, 1)
+            )
         
+    def forward(self, y1):
+        E4, E3, E2, E1 = 4, 16, 41, 90
+        if self.use_padding:
+            x4 = self.up_conv4(self.layer5(torch.cat((y1[0],), dim=1)))
+            x3 = self.up_conv3(self.layer4(torch.cat((y1[4], x4), dim=1)))
+            x2 = self.up_conv2(self.layer3(torch.cat((y1[3], x3), dim=1)))
+            x1 = self.up_conv1(self.layer2(torch.cat((y1[2], x2), dim=1)))
+            y = self.layer1(torch.cat((y1[1], x1), dim=1))
+        else:
+            x4 = self.up_conv4(self.layer5(torch.cat((y1[0],), dim=1)))
+            x3 = self.up_conv3(self.layer4(torch.cat((y1[4][:, :, E4:-E4, E4:-E4], x4), dim=1)))
+            x2 = self.up_conv2(self.layer3(torch.cat((y1[3][:, :, E3:-E3-1, E3:-E3-1], x3), dim=1)))
+            x1 = self.up_conv1(self.layer2(torch.cat((y1[2][:, :, E2:-E2, E2:-E2], x2), dim=1)))
+            y = self.layer1(torch.cat((y1[1][:, :, E1:-E1, E1:-E1], x1), dim=1))
+        return y
         
         
 class Decoder3(nn.Module):
@@ -341,7 +408,22 @@ class UNet3(nn.Module):
         x = self.decoder(ct, pet, mri)
         return x
     
-    
+
+class UNetCT(nn.Module):
+    def __init__(self, use_padding=False):
+        super().__init__()
+        encoder = Encoder2
+        decoder = DecoderCT
+        self.use_padding = use_padding
+        self.encoder = encoder(use_padding)
+        self.decoder = decoder(use_padding)
+        
+    def forward(self, ct, pet, mri, use_ct=True, use_pet=True, use_mri=True):
+        ref_encoding = self.encoder1(ct)
+        zero_encoding = tuple(torch.zeros_like(tensor) for tensor in ref_encoding)
+        ct = self.encoder1(ct) if use_ct else zero_encoding
+        x = self.decoder(ct)
+        return x    
 
 
 class AttentionBlock(nn.Module):

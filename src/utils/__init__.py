@@ -177,13 +177,14 @@ def bin_dice_eval_with_logit(y_hat, y, threshold=0.5, ep=1e-8):
     return (intersection * 2. + ep) / (union + ep)
 
 
-def save_compressed_checkpoint(state, filename):
-    torch.save(state, filename + '.temp')
-    with open(filename + '.temp', 'rb') as f_in:
-        with gzip.open(filename, 'wb') as f_out:
+def save_compressed_checkpoint(state, directory, filename):
+    os.makedirs(directory, exist_ok=True)
+    torch.save(state, os.path.join(directory, filename) + '.temp')
+    with open(os.path.join(directory, filename) + '.temp', 'rb') as f_in:
+        with gzip.open(os.path.join(directory, filename), 'wb') as f_out:
             shutil.copyfileobj(f_in, f_out)
-    os.remove(filename + '.temp')
+    os.remove(os.path.join(directory, filename) + '.temp')
 
-def load_compressed_checkpoint(filename):
-    with gzip.open(filename, 'rb') as f:
+def load_compressed_checkpoint(directory, filename):
+    with gzip.open(os.path.join(directory, filename), 'rb') as f:
         return torch.load(f)
