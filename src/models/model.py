@@ -463,7 +463,7 @@ class Type2Model(nn.Module):
             elif isinstance(m, nn.Linear):
                 init.kaiming_normal_(m.weight, nonlinearity='relu')
                 
-    def __init__(self, MRI='T1', unet=UNet3, use_padding=False):
+    def __init__(self, MRI='T1', unet=UNet2, use_padding=True):
         super().__init__()
         self.MRI = MRI
         self.use_padding = use_padding
