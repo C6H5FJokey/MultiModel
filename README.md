@@ -92,7 +92,7 @@ net = Type2Model()
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 net = net.to(device)
 # 如果验证训练效果最好的模型
-checkpoint = load_compressed_checkpoint('src/models/checkpoints/best_model.pth.gz')
+checkpoint = load_compressed_checkpoint('src/models/checkpoints', 'best_model.pth.gz')
 net.load_state_dict(checkpoint['model_state_dict'])
 # 如果验证最后训练完成的模型
 net.load_state_dict(torch.load('net_{num}.pth')) # num为目录中具体的模型
