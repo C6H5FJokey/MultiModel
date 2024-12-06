@@ -57,7 +57,7 @@ pip install -r requirements.txt
 ```
 from src.data.data_preprocessing import spawn_datasets_and_labels, split_batch
 spawn_datasets_and_labels() # 自动处理数据，处理后的样本数据位于 data/processed/datasets，标注位于 data/processed/labels
-split_batch() # 将数据进行切分，处理后的数据位于 `data/processed/datasets`
+split_batch() # 将数据进行切分，处理后的数据位于 data/processed/datasets
 ```
 
 3. 训练数据：

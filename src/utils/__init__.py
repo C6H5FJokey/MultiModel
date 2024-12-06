@@ -139,6 +139,8 @@ def log_dice_loss_with_logit(y_hat, y, ep=1e-8):
     pixel_wise_ce = ce_loss(y_hat, y)
     ce_total_loss = pixel_wise_ce
     
+    if y.sum() == 0: return ce_total_loss * 3
+    
     y_hat = torch.sigmoid(y_hat)
     intersection = torch.sum(y_hat * y, dim=(1, 2, 3))
     y_hat_sum = torch.sum(y_hat, dim=(1, 2, 3))
