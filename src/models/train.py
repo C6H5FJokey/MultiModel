@@ -86,10 +86,15 @@ def train(net, device, train_loader, val_loader, loss_fn=log_dice_loss_with_logi
             if (epoch + 1) % save_interval == 0:
                 save_compressed_checkpoint(checkpoint, os.path.join(os.path.dirname(__file__), 'checkpoints'), f'checkpoint_epoch_{epoch+1}.pth.gz')
                 
+                checkpoints_dir = os.path.join(os.path.dirname(__file__), 'checkpoints')
                 # 保持最近N个checkpoints
-                checkpoints = sorted([f for f in os.listdir(os.path.join(os.path.dirname(__file__), 'checkpoints')) if f.startswith('checkpoint_epoch_')])
+                checkpoints = sorted(
+                    [f for f in os.listdir(checkpoints_dir) if f.startswith('checkpoint_epoch_')],
+                    key=lambda x: os.path.getmtime(os.path.join(checkpoints_dir, x))
+                )
                 for old_checkpoint in checkpoints[:-keep_n_checkpoints]:
                     os.remove(os.path.join(os.path.dirname(__file__), 'checkpoints', old_checkpoint))
+                
     # 保存模型
     print(f'train end, timer: {time.time() - timer_tik}')
     save_model_incrementally(net, os.path.join(os.path.dirname(__file__), '../../models'))
