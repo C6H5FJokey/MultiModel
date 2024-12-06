@@ -20,7 +20,7 @@ def train(net, device, train_loader, val_loader, loss_fn=log_dice_loss_with_logi
     start_epoch = 0
     best_val_loss = float('inf')
     if resume_from_checkpoint:
-        checkpoint = load_compressed_checkpoint(os.path.join(os.path.dirname(__file__), 'checkpoints', resume_from_checkpoint))
+        checkpoint = load_compressed_checkpoint(os.path.join(os.path.dirname(__file__), 'checkpoints'), resume_from_checkpoint)
         net.load_state_dict(checkpoint['model_state_dict'])
         optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         start_epoch = checkpoint['epoch'] + 1
