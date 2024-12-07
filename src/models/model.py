@@ -34,7 +34,7 @@ class Residual(nn.Module):  #@save
         if self.conv3:
             X = self.conv3(X)
         Y += X
-        return F.relu(Y)
+        return F.leaky_relu(Y, 0.2)
 
 
 class Encoder1(nn.Module):
@@ -384,6 +384,50 @@ class UNet2(nn.Module):
         ct = self.encoder1(ct) if use_ct else zero_encoding
         pet = self.encoder2(pet) if use_pet else zero_encoding
         mri = self.encoder3(mri) if use_mri else zero_encoding
+        x = self.decoder(ct, pet, mri)
+        return x
+
+
+class ResiPipe(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.resi1 = nn.Sequential(*[Residual(64, 64) for _ in range(4)])
+        self.resi2 = nn.Sequential(*[Residual(128, 128) for _ in range(3)])
+        self.resi3 = nn.Sequential(*[Residual(256, 256) for _ in range(2)])
+        self.resi4 = nn.Sequential(*[Residual(512, 512) for _ in range(1)])
+    
+    def forward(self, x, use_x=True):
+        x4 = self.resi4(x[4])
+        x3 = self.resi3(x[3])
+        x2 = self.resi2(x[2])
+        x1 = self.resi1(x[1])
+        y = x[0]
+        return (y, x1, x2, x3, x4)
+
+
+class MultiResUNet(nn.Module):
+    def __init__(self, use_padding=False):
+        super().__init__()
+        encoder = Encoder2
+        decoder = Decoder2
+        self.use_padding = use_padding
+        self.encoder1 = encoder(use_padding=use_padding)
+        self.encoder2 = encoder(use_padding=use_padding)
+        self.encoder3 = encoder(use_padding=use_padding)
+        self.resi1 = ResiPipe()
+        self.resi2 = ResiPipe()
+        self.resi3 = ResiPipe()
+        self.decoder = decoder(use_padding=use_padding)
+        
+    def forward(self, ct, pet, mri, use_ct=True, use_pet=True, use_mri=True):
+        ref_encoding = self.encoder1(ct)
+        zero_encoding = tuple(torch.zeros_like(tensor) for tensor in ref_encoding)
+        ct = self.encoder1(ct) if use_ct else zero_encoding
+        pet = self.encoder2(pet) if use_pet else zero_encoding
+        mri = self.encoder3(mri) if use_mri else zero_encoding
+        ct = self.resi1(ct) if use_ct else zero_encoding
+        pet = self.resi2(pet) if use_pet else zero_encoding
+        mri = self.resi3(mri) if use_mri else zero_encoding
         x = self.decoder(ct, pet, mri)
         return x
 

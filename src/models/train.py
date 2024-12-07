@@ -1,10 +1,10 @@
 import torch
 import torch.optim as optim
 from torch.utils.tensorboard import SummaryWriter
-from src.models.model import Type2Model
+from src.models.model import Type2Model, MultiResUNet
 import os
 import time
-from src.utils import DataAgent, set_seed, save_model_incrementally, log_dice_loss_with_logit, load_compressed_checkpoint, save_compressed_checkpoint
+from src.utils import DataAgent, set_seed, save_model_incrementally, log_dice_loss_with_logit, load_compressed_checkpoint, save_compressed_checkpoint, custom_loss
 
 writer = SummaryWriter(os.path.join(os.path.dirname(__file__), '../../logs'))
 
@@ -102,9 +102,9 @@ def train(net, device, train_loader, val_loader, loss_fn=log_dice_loss_with_logi
 
 if __name__ == "__main__":
     set_seed(0)
-    net = Type2Model(use_padding=True)
+    net = Type2Model(use_padding=True, unet=MultiResUNet)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     net = net.to(device)
     if 'da' not in locals():
-        da = DataAgent(3)
-    train(net, device, da.get_train_loader(), da.get_val_loader(), num_epochs=10)
+        da = DataAgent(1)
+    train(net, device, da.get_train_loader(1), da.get_val_loader(1), num_epochs=10, loss_fn=custom_loss)

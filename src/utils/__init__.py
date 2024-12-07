@@ -154,6 +154,49 @@ def log_dice_loss_with_logit(y_hat, y, ep=1e-8):
     return dice_ce_loss
 
 
+def custom_loss(y_hat, y, alpha=0.25, gamma=2, ep=1e-8):
+    """
+    自定义损失函数，结合Dice损失和Focal Loss，处理前景和背景不平衡问题。
+    
+    参数:
+    y_hat (Tensor): 模型的预测值， logits 形式。
+    y (Tensor): 真实标签。
+    alpha (float): Focal Loss中的平衡因子。
+    gamma (float): Focal Loss中的聚焦参数。
+    ep (float): 防止数值不稳定的小数。
+    
+    返回:
+    Tensor: 批量损失的均值。
+    """
+    # 检查标签维度，确保是4维
+    if len(y.shape) == 3:
+        y = y.unsqueeze(1)
+    
+    # 计算Focal Loss
+    p = torch.sigmoid(y_hat)
+    focal_loss = -alpha * y * (1 - p)**gamma * torch.log(p + ep) \
+                 - (1 - alpha) * (1 - y) * p**gamma * torch.log(1 - p + ep)
+    
+    # 计算Dice损失
+    intersection = torch.sum(p * y, dim=(1, 2, 3))
+    y_sum = torch.sum(y, dim=(1, 2, 3))
+    p_sum = torch.sum(p, dim=(1, 2, 3))
+    dice = (2. * intersection + ep) / (p_sum + y_sum + ep)
+    dice_loss = -torch.log(dice)
+    
+    # 判断样本是否有前景
+    has_foreground = y.sum(dim=(1, 2, 3)) > 0
+    
+    # 组合损失
+    total_loss = torch.zeros_like(dice_loss)
+    total_loss[has_foreground] = dice_loss[has_foreground] + focal_loss[has_foreground].mean(dim=(1, 2, 3))
+    total_loss[~has_foreground] = focal_loss[~has_foreground].mean(dim=(1, 2, 3))
+    
+    # 批量平均损失
+    total_loss = total_loss.mean()
+    return total_loss
+
+
 def ce_loss_with_logit(y_hat, y, ep=1e-8):
     if len(y.shape) == 3:
         y = y.unsqueeze(1)
