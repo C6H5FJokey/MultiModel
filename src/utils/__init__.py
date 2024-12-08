@@ -166,8 +166,7 @@ def dice_loss_with_logit(y_hat, y, ep=1e-8):
     y_hat_sum = torch.sum(y_hat, dim=(1, 2, 3))
     y_sum = torch.sum(y, dim=(1, 2, 3))
     dice = (2. * intersection + ep) / (y_hat_sum + y_sum + ep)
-    dice = torch.clamp(dice, min=ep, max=1.0)
-    dice_loss = dice
+    dice_loss = 1 - dice
     
     total_loss = dice_loss + weighted_ce
     total_loss = total_loss.mean()

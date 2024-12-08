@@ -513,12 +513,15 @@ class Type2Model(nn.Module):
         self.use_padding = use_padding
         self.net = unet(use_padding=use_padding)
         self.initialize_weights()
+        self.use_ct = True
+        self.use_pet = True
+        self.use_mri = True
     
-    def forward(self, x, use_ct=True, use_pet=True, use_mri=True):
+    def forward(self, x):
         if self.MRI == 'T1':
-            return self.net(x[0], x[1], x[2], use_ct=True, use_pet=True, use_mri=True)
+            return self.net(x[0], x[1], x[2], use_ct=self.use_ct, use_pet=self.use_pet, use_mri=self.use_mri)
         elif self.MRI == 'T2':
-            return self.net(x[0], x[1], x[3], use_ct=True, use_pet=True, use_mri=True)
+            return self.net(x[0], x[1], x[3], use_ct=self.use_ct, use_pet=self.use_pet, use_mri=self.use_mri)
         else:
             raise ValueError(f"Unsupported MRI type: {self.MRI}")
         
