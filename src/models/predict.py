@@ -96,6 +96,7 @@ def iou_score(outputs_l, labels_l, threshold=0.5):
     
     # 计算 IoU
     iou = torch.zeros_like(union)
+    iou[union == 0] = (y_pred_bin.sum(dim=(1, 2, 3))[union == 0] == 0).to(torch.float32)
     iou[union != 0] = intersection[union != 0] / union[union != 0]
     return iou
 
