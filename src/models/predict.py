@@ -154,6 +154,34 @@ def plot_samples(packed_result, pic_name='', threshold=0.5):
             plt.show()
 
 
+def plot_images_from_tensor(tensor, batch_index, num_images_sqrt, pic_name=''):
+    """
+    Plots images from a tensor in a grid layout.
+    
+    :param tensor: The input tensor of shape (n, channels, h, w).
+    :param batch_index: The index of the batch to visualize.
+    :param num_images_sqrt: The square root of the number of images to display.
+    """
+    num_images = num_images_sqrt ** 2
+    images = tensor[batch_index][:num_images]
+    
+    fig, axes = plt.subplots(num_images_sqrt, num_images_sqrt, figsize=(10, 10))
+    
+    for i in range(num_images):
+        ax = axes[i // num_images_sqrt, i % num_images_sqrt]
+        img = images[i].cpu().detach()
+        ax.imshow(img, cmap='gray')
+        ax.axis('off')
+    
+    plt.tight_layout()
+    if pic_name:
+        # 保存图形为矢量图
+        plt.savefig(os.path.join(os.path.dirname(__file__), '../../data/extra', pic_name+'.png'))
+        plt.close()
+    else:
+        plt.show()
+
+
 if __name__ == '__main__':    
     if 'da' not in locals():
         da = DataAgent(3)
