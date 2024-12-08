@@ -1,5 +1,5 @@
 import torch
-from src.utils import log_dice_loss_with_logit, bin_dice_eval_with_logit, DataAgent, get_model
+from src.utils import log_dice_loss_with_logit, bin_dice_eval_with_logit, DataAgent, get_model, dice_loss_with_logit
 from src.models.model import Type2Model
 import time
 import matplotlib.pyplot as plt
@@ -8,7 +8,7 @@ import numpy as np
 import os
 from sklearn.metrics import roc_curve, auc
 
-def predict(net, device, test_loader, loss_fn=log_dice_loss_with_logit):
+def predict(net, device, test_loader, loss_fn=log_dice_loss_with_logit, indices=[]):
     net.eval()
     outputs_l = []
     labels_l = []
@@ -16,6 +16,8 @@ def predict(net, device, test_loader, loss_fn=log_dice_loss_with_logit):
     dice_l = []
     timer_tik = time.time()
     offset= 94 if not get_model(net).use_padding else 0
+    index = 0
+    packed_result = {"inputs_l":[], "outputs_l":[], "labels_l":[], "dice_l":[]}
     with torch.no_grad():
         for inputs, labels in test_loader:
             inputs = tuple(input_tensor.to(device) for input_tensor in inputs)
@@ -31,13 +33,19 @@ def predict(net, device, test_loader, loss_fn=log_dice_loss_with_logit):
             l = loss_fn(outputs, labels)
             loss_l.append(l)
             dice_l.append(bin_dice_eval_with_logit(outputs, labels))
+            if index in indices:
+                packed_result["inputs_l"].append(inputs)
+                packed_result["outputs_l"].append(outputs.detach())
+                packed_result["labels_l"].append(labels)
+                packed_result["dice_l"].append(dice_l[-1])
+            index += 1
         loss_l = torch.tensor(loss_l)
         dice_l_ = torch.cat(dice_l)
         labels_l_ = torch.cat(labels_l)
         dice_bg = dice_l_[(labels_l_.sum(dim=(1,2))==0)].mean()
         dice_fg = dice_l_[(labels_l_.sum(dim=(1,2))!=0)].mean()
         print(f'avg_loss: {loss_l.mean()}, avg_dice: {torch.cat(dice_l).mean()}, avg_iou: {iou_score(outputs_l, labels_l).mean()}, dice_fg: {dice_fg}, dice_bg: {dice_bg}, timer: {time.time() - timer_tik} ')
-        return (outputs_l, labels_l, loss_l, dice_l)
+        return (outputs_l, labels_l, loss_l, dice_l, packed_result)
     
 
 def box_plt(dice_l, pic_name=''):
@@ -104,6 +112,48 @@ def iou_score(outputs_l, labels_l, threshold=0.5):
     iou[union != 0] = intersection[union != 0] / union[union != 0]
     return iou
 
+def plot_samples(packed_result, pic_name=''):
+    """
+    Plots the first sample from each batch in the packed result.
+    
+    :param packed_result: Dictionary containing 'inputs_l', 'outputs_l', and 'labels_l'.
+    """
+    inputs_l = packed_result["inputs_l"]
+    outputs_l = packed_result["outputs_l"]
+    labels_l = packed_result["labels_l"]
+    modality = ['CT', 'PET', 'MRI']
+    for batch_idx in range(len(inputs_l)):
+        inputs = inputs_l[batch_idx]
+        outputs = outputs_l[batch_idx]
+        labels = labels_l[batch_idx]
+        
+        fig, axes = plt.subplots(1, 5, figsize=(15, 5))
+        
+        # Plot each modality
+        for j in range(3):
+            axes[j].imshow(inputs[j][0, 0].cpu(), cmap='gray')
+            axes[j].set_title(f'{modality[j]}')
+            axes[j].axis('off')
+        
+        # Plot prediction
+        axes[3].imshow(outputs[0, 0].cpu(), cmap='gray')
+        axes[3].set_title('Prediction')
+        axes[3].axis('off')
+        
+        # Plot label
+        axes[4].imshow(labels[0].cpu(), cmap='gray')
+        axes[4].set_title('Label')
+        axes[4].axis('off')
+        
+        plt.tight_layout()
+        if pic_name:
+            # 保存图形为矢量图
+            plt.savefig(os.path.join(os.path.dirname(__file__), '../../data/extra', pic_name+str(batch_idx)+'.png'))
+            plt.close()
+        else:
+            plt.show()
+
+
 if __name__ == '__main__':    
     if 'da' not in locals():
         da = DataAgent(3)
@@ -111,5 +161,4 @@ if __name__ == '__main__':
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     if 'net' not in locals():
         net = Type2Model().to(device)
-    predict_result = predict(net, device, da.get_test_loader())
-    
+    predict_result = predict(net, device, da.get_test_loader(), loss_fn=dice_loss_with_logit, indices=[0, 1, 2])
