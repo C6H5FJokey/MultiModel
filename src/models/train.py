@@ -4,7 +4,7 @@ from torch.utils.tensorboard import SummaryWriter
 from src.models.model import Type2Model, MultiResUNet
 import os
 import time
-from src.utils import DataAgent, set_seed, save_model_incrementally, log_dice_loss_with_logit, load_compressed_checkpoint, save_compressed_checkpoint, custom_loss
+from src.utils import DataAgent, set_seed, save_model_incrementally, log_dice_loss_with_logit, load_compressed_checkpoint, save_compressed_checkpoint, custom_loss, get_model
 
 writer = SummaryWriter(os.path.join(os.path.dirname(__file__), '../../logs'))
 
@@ -15,13 +15,13 @@ def train(net, device, train_loader, val_loader, loss_fn=log_dice_loss_with_logi
     # 初始化模型
     
     optimizer = optim.Adam(net.parameters(), lr=0.001)
-    offset= 94 if not net.use_padding else 0
+    offset= 94 if not get_model(net).use_padding else 0
     
     start_epoch = 0
     best_val_loss = float('inf')
     if resume_from_checkpoint:
         checkpoint = load_compressed_checkpoint(os.path.join(os.path.dirname(__file__), 'checkpoints'), resume_from_checkpoint)
-        net.load_state_dict(checkpoint['model_state_dict'])
+        get_model(net).load_state_dict(checkpoint['model_state_dict'])
         optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         start_epoch = checkpoint['epoch'] + 1
         best_val_loss = checkpoint.get('best_val_loss', float('inf'))
@@ -73,7 +73,7 @@ def train(net, device, train_loader, val_loader, loss_fn=log_dice_loss_with_logi
         if is_best or (epoch + 1) % save_interval == 0:
             checkpoint = {
                 'epoch': epoch,
-                'model_state_dict': net.state_dict(),
+                'model_state_dict': get_model(net).state_dict(),
                 'optimizer_state_dict': optimizer.state_dict(),
                 'train_loss': avg_train_loss,
                 'val_loss': avg_val_loss,
@@ -101,10 +101,13 @@ def train(net, device, train_loader, val_loader, loss_fn=log_dice_loss_with_logi
 
 
 if __name__ == "__main__":
+    os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+    os.environ["CUDA_VISIBLE_DEVICES"] = "1, 3"
+    device_ids = [0, 1]
     set_seed(0)
     net = Type2Model(use_padding=True, unet=MultiResUNet)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    net = net.to(device)
+    net = torch.nn.DataParallel(net, device_ids=device_ids)
     if 'da' not in locals():
         da = DataAgent(1)
     train(net, device, da.get_train_loader(1), da.get_val_loader(1), num_epochs=10, loss_fn=custom_loss)

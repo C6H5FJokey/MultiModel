@@ -105,7 +105,7 @@ def save_model_incrementally(net, directory, base_name='net'):
     file_path = os.path.join(directory, file_name)
     
     # 保存模型
-    torch.save(net.state_dict(), file_path)
+    torch.save(get_model(net).state_dict(), file_path)
     print(f"Model saved as {file_name}")
     
 
@@ -140,9 +140,6 @@ def log_dice_loss_with_logit(y_hat, y, ep=1e-8):
     # ce_total_loss = pixel_wise_ce.mean()
     weighted_ce = pixel_wise_ce.mean((1, 2, 3))
     
-    # if y.sum() == 0: return ce_total_loss * 2
-    mask = y.sum((1,2,3)) != 0
-    
     y_hat = torch.sigmoid(y_hat)
     intersection = torch.sum(y_hat * y, dim=(1, 2, 3))
     y_hat_sum = torch.sum(y_hat, dim=(1, 2, 3))
@@ -150,11 +147,8 @@ def log_dice_loss_with_logit(y_hat, y, ep=1e-8):
     dice = (2. * intersection + ep) / (y_hat_sum + y_sum + ep)
     dice = torch.clamp(dice, min=ep, max=1.0)
     dice_loss = -torch.log(dice)
-
-    total_loss = torch.zeros_like(dice_loss)
-    total_loss[mask] = dice_loss[mask] + weighted_ce[mask]
-    total_loss[~mask] = weighted_ce[~mask]
     
+    total_loss = dice_loss + weighted_ce
     total_loss = total_loss.mean()
     
     return total_loss
@@ -190,13 +184,7 @@ def custom_loss(y_hat, y, alpha=0.25, gamma=2, ep=1e-8):
     dice = (2. * intersection + ep) / (p_sum + y_sum + ep)
     dice_loss = -torch.log(dice)
     
-    # 判断样本是否有前景
-    has_foreground = y.sum(dim=(1, 2, 3)) > 0
-    
-    # 组合损失
-    total_loss = torch.zeros_like(dice_loss)
-    total_loss[has_foreground] = dice_loss[has_foreground] + focal_loss[has_foreground].mean(dim=(1, 2, 3))
-    total_loss[~has_foreground] = focal_loss[~has_foreground].mean(dim=(1, 2, 3))
+    total_loss = dice_loss + focal_loss.mean(dim=(1, 2, 3))
     
     # 批量平均损失
     total_loss = total_loss.mean()
@@ -240,4 +228,8 @@ def save_compressed_checkpoint(state, directory, filename):
 
 def load_compressed_checkpoint(directory, filename):
     with gzip.open(os.path.join(directory, filename), 'rb') as f:
-        return torch.load(f)
+        return torch.load(f, weights_only=True)
+
+
+def get_model(model):
+    return model.module if isinstance(model, nn.DataParallel) else model
