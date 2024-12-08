@@ -153,6 +153,27 @@ def log_dice_loss_with_logit(y_hat, y, ep=1e-8):
     
     return total_loss
 
+def dice_loss_with_logit(y_hat, y, ep=1e-8):
+    if len(y.shape) == 3:
+        y = y.unsqueeze(1)
+    ce_loss = nn.BCEWithLogitsLoss(reduction='none')
+    pixel_wise_ce = ce_loss(y_hat, y)
+    # ce_total_loss = pixel_wise_ce.mean()
+    weighted_ce = pixel_wise_ce.mean((1, 2, 3))
+    
+    y_hat = torch.sigmoid(y_hat)
+    intersection = torch.sum(y_hat * y, dim=(1, 2, 3))
+    y_hat_sum = torch.sum(y_hat, dim=(1, 2, 3))
+    y_sum = torch.sum(y, dim=(1, 2, 3))
+    dice = (2. * intersection + ep) / (y_hat_sum + y_sum + ep)
+    dice = torch.clamp(dice, min=ep, max=1.0)
+    dice_loss = dice
+    
+    total_loss = dice_loss + weighted_ce
+    total_loss = total_loss.mean()
+    
+    return total_loss
+
 
 def custom_loss(y_hat, y, alpha=0.25, gamma=2, ep=1e-8):
     """

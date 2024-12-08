@@ -32,7 +32,11 @@ def predict(net, device, test_loader, loss_fn=log_dice_loss_with_logit):
             loss_l.append(l)
             dice_l.append(bin_dice_eval_with_logit(outputs, labels))
         loss_l = torch.tensor(loss_l)
-        print(f'avg_loss: {loss_l.mean()}, avg_dice: {torch.cat(dice_l).mean()}, timer: {time.time() - timer_tik} ')
+        dice_l_ = torch.cat(dice_l)
+        labels_l_ = torch.cat(labels_l)
+        dice_bg = dice_l_[(labels_l_.sum(dim=(1,2))==0)].mean()
+        dice_fg = dice_l_[(labels_l_.sum(dim=(1,2))!=0)].mean()
+        print(f'avg_loss: {loss_l.mean()}, avg_dice: {torch.cat(dice_l).mean()}, avg_iou: {iou_score(outputs_l, labels_l).mean()}, dice_fg: {dice_fg}, dice_bg: {dice_bg}, timer: {time.time() - timer_tik} ')
         return (outputs_l, labels_l, loss_l, dice_l)
     
 
