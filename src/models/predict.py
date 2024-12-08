@@ -112,7 +112,7 @@ def iou_score(outputs_l, labels_l, threshold=0.5):
     iou[union != 0] = intersection[union != 0] / union[union != 0]
     return iou
 
-def plot_samples(packed_result, pic_name=''):
+def plot_samples(packed_result, pic_name='', threshold=0.5):
     """
     Plots the first sample from each batch in the packed result.
     
@@ -124,7 +124,7 @@ def plot_samples(packed_result, pic_name=''):
     modality = ['CT', 'PET', 'MRI']
     for batch_idx in range(len(inputs_l)):
         inputs = inputs_l[batch_idx]
-        outputs = outputs_l[batch_idx]
+        outputs = (torch.sigmoid(outputs_l[batch_idx]) > threshold).to(torch.float32)
         labels = labels_l[batch_idx]
         
         fig, axes = plt.subplots(1, 5, figsize=(15, 5))
