@@ -111,3 +111,5 @@ This project is an implementation of the methods described in:
 Vallières M, Freeman C R, Skamene S R, et al. A radiomics model from joint FDG-PET and MRI texture features for the prediction of lung metastases in soft-tissue sarcomas of the extremities [J]. Physics in Medicine and Biology, 2015, 60(14): 5471-96.
 
 Guo Z, Li X, Huang H, et al. Deep Learning-Based Image Segmentation on Multimodal Medical Imaging [J]. IEEE Transactions on Radiation and Plasma Medical Sciences, 2019, 3(2): 162-9.
+
+Ronneberger O, Fischer P, Brox T. U-Net: Convolutional Networks for Biomedical Image Segmentation; proceedings of the Medical Image Computing and Computer-Assisted Intervention – MICCAI 2015, Cham, F 2015//, 2015 [C]. Springer International Publishing.
