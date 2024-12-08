@@ -182,7 +182,9 @@ def custom_loss(y_hat, y, alpha=0.25, gamma=2, ep=1e-8):
     y_sum = torch.sum(y, dim=(1, 2, 3))
     p_sum = torch.sum(p, dim=(1, 2, 3))
     dice = (2. * intersection + ep) / (p_sum + y_sum + ep)
+    dice = torch.clamp(dice, min=ep, max=1.0)
     dice_loss = -torch.log(dice)
+    
     
     total_loss = dice_loss + focal_loss.mean(dim=(1, 2, 3))
     
